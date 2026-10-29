@@ -23,18 +23,20 @@ jobs:
             goarch: amd64
             output: openwrtmon-linux-amd64
             flags: -ldflags="-s -w"
-          - os: macos-14
+          - os: macos-latest
             goos: darwin
             goarch: arm64
             output: openwrtmon
             flags: -ldflags="-s -w"
             arch_name: AppleSilicon
-          - os: macos-13
+          - os: macos-latest
             goos: darwin
             goarch: amd64
             output: openwrtmon
             flags: -ldflags="-s -w"
             arch_name: Intel
+            cflags: "-target x86_64-apple-macos10.15"
+            ldflags: "-target x86_64-apple-macos10.15"
 
     runs-on: ${{ matrix.os }}
     defaults:
@@ -71,6 +73,8 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: '1'
+          CGO_CFLAGS: ${{ matrix.cflags }}
+          CGO_LDFLAGS: ${{ matrix.ldflags }}
         run: |
           mkdir -p "dist/OpenWRTMon.app/Contents/MacOS"
           mkdir -p "dist/OpenWRTMon.app/Contents/Resources"
