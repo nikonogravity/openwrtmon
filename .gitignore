@@ -1,0 +1,23 @@
+# Root compiled binaries
+/openwrtmon
+/openwrtmon.exe
+/openwrtmon-linux-amd64
+/openwrtmon-macos-*
+
+# Logs
+*.log
+
+# Distribution output binaries (compiled by CI/CD)
+dist/*.exe
+dist/*.log
+
+# OS metadata
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+*.swp

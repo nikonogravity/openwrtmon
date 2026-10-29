@@ -1,0 +1,115 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            output: openwrtmon.exe
+            flags: -ldflags="-s -w -H windowsgui"
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            output: openwrtmon-linux-amd64
+            flags: -ldflags="-s -w"
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            output: openwrtmon
+            flags: -ldflags="-s -w"
+            arch_name: AppleSilicon
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            output: openwrtmon
+            flags: -ldflags="-s -w"
+            arch_name: Intel
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install dependencies (Linux)
+        if: matrix.goos == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libayatana-appindicator3-dev
+
+      - name: Build binary (Windows / Linux)
+        if: matrix.goos != 'darwin'
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p dist
+          go build ${{ matrix.flags }} -o dist/${{ matrix.output }} ./cmd/openwrtmon
+
+      - name: Build and Package .app Bundle (macOS)
+        if: matrix.goos == 'darwin'
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p "dist/OpenWRTMon.app/Contents/MacOS"
+          mkdir -p "dist/OpenWRTMon.app/Contents/Resources"
+          go build ${{ matrix.flags }} -o "dist/OpenWRTMon.app/Contents/MacOS/openwrtmon" ./cmd/openwrtmon
+          chmod +x "dist/OpenWRTMon.app/Contents/MacOS/openwrtmon"
+
+          cat << 'EOF' > "dist/OpenWRTMon.app/Contents/Info.plist"
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>openwrtmon</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.openwrtmon.app</string>
+              <key>CFBundleName</key>
+              <string>OpenWRT Monitor</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>1.0.0</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>10.15</string>
+              <key>LSUIElement</key>
+              <string>1</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+          </dict>
+          </plist>
+          EOF
+
+          cd dist
+          zip -r "OpenWRTMon-macOS-${{ matrix.arch_name }}.zip" OpenWRTMon.app
+
+      - name: Upload Artifact (Non-macOS)
+        if: matrix.goos != 'darwin'
+        uses: actions/upload-artifact@v4
+        with:
+          name: openwrtmon-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/${{ matrix.output }}
+
+      - name: Upload Artifact (macOS .app zip)
+        if: matrix.goos == 'darwin'
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenWRTMon-macOS-${{ matrix.arch_name }}
+          path: dist/OpenWRTMon-macOS-${{ matrix.arch_name }}.zip
