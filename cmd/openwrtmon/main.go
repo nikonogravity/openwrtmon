@@ -7,14 +7,10 @@ import (
 	"log"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sync"
 	"time"
-	"unsafe"
-
-	"golang.org/x/sys/windows"
 
 	"openwrtmon/internal/autostart"
 	"openwrtmon/internal/config"
@@ -498,24 +494,6 @@ func (a *App) StartPollLoop() {
 			return
 		}
 	}
-}
-
-func openBrowser(url string) {
-	if runtime.GOOS == "windows" {
-		verbPtr, _ := windows.UTF16PtrFromString("open")
-		urlPtr, _ := windows.UTF16PtrFromString(url)
-		s32 := windows.NewLazySystemDLL("shell32.dll")
-		pShellExecute := s32.NewProc("ShellExecuteW")
-		pShellExecute.Call(0, uintptr(unsafe.Pointer(verbPtr)), uintptr(unsafe.Pointer(urlPtr)), 0, 0, 1)
-		return
-	}
-	var cmd *exec.Cmd
-	if runtime.GOOS == "darwin" {
-		cmd = exec.Command("open", url)
-	} else {
-		cmd = exec.Command("xdg-open", url)
-	}
-	_ = cmd.Start()
 }
 
 func main() {
